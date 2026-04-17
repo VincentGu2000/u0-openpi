@@ -20,8 +20,10 @@ import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
+import openpi.policies.u0bot_policy as u0bot_policy
 import openpi.shared.download as _download
 import openpi.shared.normalize as _normalize
+import openpi.shared.nnx_utils as nnx_utils
 import openpi.training.droid_rlds_dataset as droid_rlds_dataset
 import openpi.training.misc.polaris_config as polaris_config
 import openpi.training.misc.roboarena_config as roboarena_config
@@ -459,6 +461,64 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
             repack_transforms=repack_transform,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotU0BotDataConfig(DataConfigFactory):
+    """Data config for the u0bot (AgileBot) usim dataset in LeRobot format.
+
+    This config handles:
+    - Repacking LeRobot dataset keys to match the policy's expected format
+    - Applying u0bot-specific data transforms (image parsing, state/action assembly)
+    - Converting absolute actions to delta actions for training
+    """
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        # Step 1: Repack transform - remap LeRobot dataset keys to policy keys.
+        # This is only applied to data from the dataset, NOT during inference.
+        repack_transform = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/ego_image": "observation.images.ego",
+                        "observation/wrist_image": "observation.images.wrist",
+                        "observation/state": "observation.state",
+                        "actions": "action",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+
+        # Step 2: Data transforms - applied to both training data and inference.
+        data_transforms = _transforms.Group(
+            inputs=[u0bot_policy.U0BotInputs(model_type=model_config.model_type)],
+            outputs=[u0bot_policy.U0BotOutputs()],
+        )
+
+        # Step 3: Convert absolute actions to delta actions.
+        # pi0 models are trained on delta actions (relative to the first state in each action chunk).
+        # Since the usim dataset uses absolute actions, we apply DeltaActions transform.
+        # The mask has 13 True values (all dims converted to delta).
+        # If any dims should remain absolute (e.g., gripper), adjust the mask accordingly.
+        delta_action_mask = _transforms.make_bool_mask(13)
+        data_transforms = data_transforms.push(
+            inputs=[_transforms.DeltaActions(delta_action_mask)],
+            outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+        )
+
+        # Step 4: Model transforms (tokenization, padding, etc.)
+        model_transforms = ModelTransformFactory()(model_config)
+
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=repack_transform,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+            # The usim dataset uses "action" (singular) as the column name, not "actions" (plural).
+            action_sequence_keys=("action",),
         )
 
 
@@ -929,6 +989,55 @@ _CONFIGS = [
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=20_000,
+    ),
+    #
+    # Fine-tuning u0bot (AgileBot) config.
+    #
+    TrainConfig(
+        name="pi05_u0bot",
+        # pi0.5 model config: action_dim=32 (default, 13-dim actions will be padded),
+        # action_horizon=10 (number of action steps per chunk).
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=16,
+            discrete_state_input=False,
+        ),
+        # Data config for the usim LeRobot dataset.
+        # Replace "your_hf_username/usim" with your actual HuggingFace repo ID or local path.
+        # For local datasets, you may need to create a symlink:
+        #   ln -s /path/to/usim ~/.cache/huggingface/lerobot/your_hf_username/usim
+        data=LeRobotU0BotDataConfig(
+            repo_id="/data/gujunwen/project/fish-vla/dataset/lerobot_full",
+            base_config=DataConfig(
+                prompt_from_task=True,
+            ),
+        ),
+        # Load pi0.5 base pre-trained weights.
+        weight_loader=weight_loaders.CheckpointWeightLoader(
+            "/data/gujunwen/model/pi05_base/params"
+        ),
+        # Freeze the PaliGemma LLM (Gemma2B) while training the rest:
+        # - SigLIP vision encoder: trainable
+        # - PaliGemma LLM (Gemma2B): FROZEN
+        # - Action Expert (Gemma300M): trainable
+        # Note: get_freeze_filter() only works for LoRA variants, so we define the filter directly.
+        freeze_filter=nnx.All(
+            nnx_utils.PathRegex(".*llm.*"),
+            nnx.Not(nnx_utils.PathRegex(".*llm.*_1.*")),
+        ),
+        # Training hyperparameters.
+        batch_size=128,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=1000,
+            peak_lr=5e-5,
+            decay_steps=100000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        num_train_steps=11000,
+        save_interval=5500,
+        keep_period=5500,
     ),
     #
     # Debugging configs.
