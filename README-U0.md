@@ -1,6 +1,6 @@
-# U0Bot 训练指南
+# U0Bot 训练与评估指南
 
-## 环境准备
+## 1. 环境准备
 
 ```bash
 mamba create -n pi05 python==3.11
@@ -12,7 +12,17 @@ conda install -c conda-forge ffmpeg -y
 pip install --force-reinstall nvidia-cudnn-cu12==9.12.0.46
 ```
 
-## JAX 训练
+## 2. 计算归一化统计量
+
+在训练之前，需要先为数据集计算归一化统计量（norm stats）：
+
+```bash
+python scripts/compute_norm_stats.py \
+    --config_name pi05_u0bot \
+    --repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_full
+```
+
+## 3. JAX 训练
 
 ```bash
 tmux new -s my_training "source ~/miniconda3/bin/activate pi05 && \
@@ -21,40 +31,40 @@ WANDB_MODE=offline XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python scripts/train.py pi
     --overwrite"
 ```
 
-## PyTorch 训练（暂时放弃）
+## 4. 评估动作预测 MSE
 
-### 安装 PyTorch
+使用 `eval_action_mse.py` 在测试数据集上逐轨迹评估模型预测动作与真实动作之间的均方误差（MSE）。
 
-```bash
-pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 torchcodec \
-    --index-url https://download.pytorch.org/whl/cu130 \
-    --extra-index-url https://pypi.tuna.tsinghua.edu.cn/simple
-```
+### 4.1 基本用法
 
-### 替换 Transformers 模块
+指定训练数据集路径加载 norm_stats，并指定仅评估前 5 条轨迹。评估时还可选择将预测动作与真实动作进行可视化对比。每个动作维度会生成一张子图，展示 gt action、pred action 和 state 的时序对比。
 
 ```bash
-uv pip show transformers
-cp -r ./src/openpi/models_pytorch/transformers_replace/* \
-    /data/gujunwen/miniconda3/envs/pi05/lib/python3.11/site-packages/transformers/
-```
-
-### 转换模型权重
-
-```bash
-python examples/convert_jax_model_to_pytorch.py \
-    --checkpoint_dir /data/gujunwen/model/pi05_base \
+python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
-    --output_path /data/gujunwen/model/pi05_base_pytorch
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999 \
+    --test_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_test \
+    --train_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_full \
+    --max_trajs 5 \
+    --save_csv_path results/eval_u0bot_test.csv \
+    --save_plot_path results/plots \
+    --eval_horizon 16
 ```
 
-### 启动训练
+### 4.2 在整个测试集进行评估
 
 ```bash
-torchrun --standalone --nnodes=1 --nproc_per_node=2 \
-    scripts/train_pytorch.py pi05_u0bot \
-    --exp-name u0bot_finetune_v1 \
-    --overwrite \
-    --no-wandb-enabled \
-    --pytorch-weight-path /data/gujunwen/model/pi05_base_pytorch
+python scripts/eval_action_mse.py \
+    --config_name pi05_u0bot \
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999 \
+    --test_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_test \
+    --save_csv_path results/eval_u0bot_test_sample.csv
+```
+
+## 5. 启动策略服务
+
+```bash
+python scripts/serve_policy.py \
+    --config pi05_u0bot \
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999
 ```
