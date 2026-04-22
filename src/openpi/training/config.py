@@ -1026,7 +1026,7 @@ _CONFIGS = [
             nnx.Not(nnx_utils.PathRegex(".*llm.*_1.*")),
         ),
         # Training hyperparameters.
-        batch_size=128,
+        batch_size=64,
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=1000,
             peak_lr=5e-5,
@@ -1035,9 +1035,9 @@ _CONFIGS = [
         ),
         optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
         ema_decay=0.999,
-        num_train_steps=11000,
-        save_interval=5500,
-        keep_period=5500,
+        num_train_steps=22000,
+        save_interval=11000,
+        keep_period=11000,
     ),
     #
     # Debugging configs.

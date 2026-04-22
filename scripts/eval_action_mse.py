@@ -209,7 +209,10 @@ def calc_mse_for_single_trajectory(
 
             # Run inference
             result = policy.infer(obs)
-            pred_chunk = result["actions"]  # (eval_horizon, 13)
+            pred_chunk = result["actions"]  # (action_horizon, 13)
+
+            # Clip predictions to [-1, 1] range
+            pred_chunk = np.clip(pred_chunk, -1.0, 1.0)
 
             # Unfold the chunk: collect step-level pred/gt pairs (limited by eval_horizon)
             max_j = min(gt_chunk.shape[0], pred_chunk.shape[0], eval_horizon)

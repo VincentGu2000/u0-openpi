@@ -26,7 +26,7 @@ python scripts/compute_norm_stats.py \
 
 ```bash
 tmux new -s my_training "source ~/miniconda3/bin/activate pi05 && \
-WANDB_MODE=offline XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python scripts/train.py pi05_u0bot \
+HF_HUB_OFFLINE=1 WANDB_MODE=offline XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python scripts/train.py pi05_u0bot \
     --exp-name=u0bot_finetune_v1 \
     --overwrite"
 ```
