@@ -56,9 +56,12 @@ python scripts/eval_action_mse.py \
 ```bash
 python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
-    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999 \
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999 \
     --test_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_test \
     --save_csv_path results/eval_u0bot_test_sample.csv
+
+# For base model, use the path below:
+    --checkpoint_dir /data/gujunwen/model/pi05_base
 ```
 
 ## 5. 启动策略服务
