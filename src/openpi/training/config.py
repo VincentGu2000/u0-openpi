@@ -1007,7 +1007,7 @@ _CONFIGS = [
         # For local datasets, you may need to create a symlink:
         #   ln -s /path/to/usim ~/.cache/huggingface/lerobot/your_hf_username/usim
         data=LeRobotU0BotDataConfig(
-            repo_id="/data/gujunwen/project/fish-vla/dataset/lerobot_full",
+            repo_id="/data/gujunwen/project/fish-vla/dataset/usim/train",
             base_config=DataConfig(
                 prompt_from_task=True,
             ),

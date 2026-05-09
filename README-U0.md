@@ -19,7 +19,7 @@ pip install --force-reinstall nvidia-cudnn-cu12==9.12.0.46
 ```bash
 python scripts/compute_norm_stats.py \
     --config_name pi05_u0bot \
-    --repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_full
+    --repo_id /data/gujunwen/project/fish-vla/dataset/usim/train
 ```
 
 ## 3. JAX 训练
@@ -43,8 +43,8 @@ HF_HUB_OFFLINE=1 WANDB_MODE=offline XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python sc
 python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
     --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999 \
-    --test_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_test \
-    --train_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_full \
+    --test_repo_id /data/gujunwen/project/fish-vla/dataset/usim/test \
+    --train_repo_id /data/gujunwen/project/fish-vla/dataset/usim/train \
     --max_trajs 5 \
     --save_csv_path results/eval_u0bot_test.csv \
     --save_plot_path results/plots \
@@ -57,7 +57,7 @@ python scripts/eval_action_mse.py \
 python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
     --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999 \
-    --test_repo_id /data/gujunwen/project/fish-vla/dataset/lerobot_test \
+    --test_repo_id /data/gujunwen/project/fish-vla/dataset/usim/test \
     --save_csv_path results/eval_u0bot_test_sample.csv
 
 # For base model, use the path below:
@@ -66,8 +66,35 @@ python scripts/eval_action_mse.py \
 
 ## 5. 启动策略服务
 
+### 5.1 WebSocket 策略服务（原生）
+
 ```bash
 python scripts/serve_policy.py \
     --config pi05_u0bot \
     --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999
+```
+
+### 5.2 HTTP 推理服务（仿真闭环测评）
+
+为 fish-vla 仿真闭环测评提供与 GR00T 兼容的 HTTP 推理接口。
+`ros_gr00t_bridge.py` 无需任何修改，只需指向本服务即可。
+
+单模型部署：
+```bash
+pip install uvicorn fastapi json-numpy requests
+python scripts/inference_service_openpi.py \
+    --config pi05_u0bot \
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999 \
+    --host 0.0.0.0 \
+    --port 8000
+```
+
+多模型部署：
+```bash
+python scripts/launch_multi_gpu.py \
+    --num-instances 5 \
+    --base-port 8000 \
+    --gpus 1 \
+    --config pi05_u0bot \
+    --checkpoint-dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999
 ```

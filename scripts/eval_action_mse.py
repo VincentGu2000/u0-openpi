@@ -272,7 +272,7 @@ def main():
     parser.add_argument(
         "--test_repo_id",
         type=str,
-        default="/data/gujunwen/project/fish-vla/dataset/lerobot_test",
+        default="/data/gujunwen/project/fish-vla/dataset/usim/test",
         help="LeRobot dataset repo ID or local path for testing",
     )
     parser.add_argument(
