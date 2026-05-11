@@ -21,6 +21,11 @@ except (ImportError, AttributeError):
     pass
 # End of monkey-patch
 
+import os
+# JAX 显存分配策略：必须在 JAX 导入之前设置
+# 设置为 false 表示按需分配，而不是预分配固定比例的 GPU 显存
+os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
+
 import argparse
 import csv
 import gc

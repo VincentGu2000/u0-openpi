@@ -503,11 +503,11 @@ class LeRobotU0BotDataConfig(DataConfigFactory):
         # Since the usim dataset uses absolute actions, we apply DeltaActions transform.
         # The mask has 13 True values (all dims converted to delta).
         # If any dims should remain absolute (e.g., gripper), adjust the mask accordingly.
-        delta_action_mask = _transforms.make_bool_mask(13)
-        data_transforms = data_transforms.push(
-            inputs=[_transforms.DeltaActions(delta_action_mask)],
-            outputs=[_transforms.AbsoluteActions(delta_action_mask)],
-        )
+        # delta_action_mask = _transforms.make_bool_mask(13)
+        # data_transforms = data_transforms.push(
+        #     inputs=[_transforms.DeltaActions(delta_action_mask)],
+        #     outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+        # )
 
         # Step 4: Model transforms (tokenization, padding, etc.)
         model_transforms = ModelTransformFactory()(model_config)

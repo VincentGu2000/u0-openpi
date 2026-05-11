@@ -36,7 +36,9 @@ import os
 # 设置为 false 表示按需分配，而不是预分配固定比例的 GPU 显存
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
+import datetime
 import logging
+import os
 import time
 import traceback
 from dataclasses import dataclass
@@ -167,6 +169,101 @@ def convert_action_openpi_to_gr00t(openpi_output: dict) -> dict:
 
 
 # ============================================================================
+# Debug 记录器
+# ============================================================================
+class DebugRecorder:
+    """记录推理服务的输入观测和输出动作，用于调试和验证数据正确性。
+
+    输出为人类可读的 .log 文本文件，可直接用文本编辑器打开查看。
+    """
+
+    def __init__(self, record_dir: str):
+        self._record_dir = os.path.abspath(record_dir)
+        os.makedirs(self._record_dir, exist_ok=True)
+        self._record_step = 0
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._log_path = os.path.join(self._record_dir, f"debug_{timestamp}.log")
+        self._log_file = open(self._log_path, "w", encoding="utf-8")
+        self._log_file.write(f"{'='*80}\n")
+        self._log_file.write(f"DebugRecorder - 推理调试日志\n")
+        self._log_file.write(f"开始时间: {datetime.datetime.now().isoformat()}\n")
+        self._log_file.write(f"{'='*80}\n\n")
+        logger.info(f"[DebugRecorder] 日志文件: {self._log_path}")
+
+    @staticmethod
+    def _format_value(val, indent=2):
+        """将值格式化为可读字符串。"""
+        prefix = " " * indent
+        if isinstance(val, np.ndarray):
+            lines = [f"{prefix}ndarray: shape={val.shape}, dtype={val.dtype}"]
+            flat = val.flatten()
+            max_show = 20
+            if len(flat) <= max_show:
+                lines.append(f"{prefix}  values: {np.array2string(flat, precision=6, separator=', ')}")
+            else:
+                lines.append(f"{prefix}  前{max_show}个值: {np.array2string(flat[:max_show], precision=6, separator=', ')}")
+                lines.append(f"{prefix}  ... 共 {len(flat)} 个元素")
+            return "\n".join(lines)
+        elif isinstance(val, dict):
+            if not val:
+                return f"{prefix}{{}}"
+            lines = []
+            for k, v in val.items():
+                formatted = DebugRecorder._format_value(v, indent + 2)
+                lines.append(f"{prefix}{k}:")
+                lines.append(formatted)
+            return "\n".join(lines)
+        elif isinstance(val, (list, tuple)):
+            if not val:
+                return f"{prefix}[]"
+            lines = [f"{prefix}[len={len(val)}]"]
+            for i, v in enumerate(val[:5]):
+                formatted = DebugRecorder._format_value(v, indent + 2)
+                lines.append(f"{prefix}  [{i}]:")
+                lines.append(formatted)
+            if len(val) > 5:
+                lines.append(f"{prefix}  ... 共 {len(val)} 个元素")
+            return "\n".join(lines)
+        elif isinstance(val, (int, float)):
+            return f"{prefix}{val}"
+        elif isinstance(val, str):
+            return f'{prefix}"{val}"'
+        else:
+            return f"{prefix}{str(val)}"
+
+    def record(self, obs: dict, action: dict, extra: dict = None) -> None:
+        """记录一次推理的输入和输出。"""
+        f = self._log_file
+        f.write(f"{'─'*80}\n")
+        f.write(f"Step {self._record_step} | {datetime.datetime.now().isoformat()}\n")
+        f.write(f"{'─'*80}\n")
+
+        f.write("[输入观测 (observation)]:\n")
+        f.write(self._format_value(obs) + "\n")
+
+        f.write("[输出动作 (action)]:\n")
+        f.write(self._format_value(action) + "\n")
+
+        if extra is not None:
+            f.write("[附加信息 (extra)]:\n")
+            f.write(self._format_value(extra) + "\n")
+
+        f.write("\n")
+        f.flush()
+        logger.info(f"[DebugRecorder] 已记录 step {self._record_step}")
+        self._record_step += 1
+
+    def close(self):
+        """关闭日志文件。"""
+        if self._log_file and not self._log_file.closed:
+            self._log_file.write(f"{'='*80}\n")
+            self._log_file.write(f"DebugRecorder 结束 | 总步数: {self._record_step}\n")
+            self._log_file.write(f"{'='*80}\n")
+            self._log_file.close()
+            logger.info(f"[DebugRecorder] 日志已关闭: {self._log_path}")
+
+
+# ============================================================================
 # HTTP 推理服务
 # ============================================================================
 class OpenPIInferenceServer:
@@ -180,9 +277,15 @@ class OpenPIInferenceServer:
         port: int = 8000,
         default_prompt: Optional[str] = None,
         pytorch_device: Optional[str] = None,
+        debug_dir: Optional[str] = None,
     ):
         self.host = host
         self.port = port
+
+        # Debug 记录器
+        self.debug_recorder = DebugRecorder(debug_dir) if debug_dir else None
+        if self.debug_recorder:
+            logger.info(f"[Debug] 已启用 debug 模式，记录到: {debug_dir}")
 
         # 加载 OpenPI policy
         logger.info(f"Loading OpenPI policy: config={config_name}, checkpoint={checkpoint_dir}")
@@ -234,6 +337,14 @@ class OpenPIInferenceServer:
 
             # 转换输出格式: OpenPI → GR00T
             gr00t_action = convert_action_openpi_to_gr00t(openpi_output)
+
+            # Debug 记录
+            if self.debug_recorder:
+                self.debug_recorder.record(
+                    obs=gr00t_obs,
+                    action=gr00t_action,
+                    extra={"infer_time": infer_time},
+                )
 
             # 使用 json_numpy 序列化响应（支持 numpy 数组）
             response_body = json_numpy.dumps(gr00t_action)
@@ -288,6 +399,10 @@ class ServerConfig:
     pytorch_device: Optional[str] = None
     """PyTorch device (e.g., 'cuda:0', 'cpu'). Auto-detected if not specified."""
 
+    # Debug 模式
+    debug_dir: Optional[str] = None
+    """Debug 记录目录。如果指定，将记录每次推理的输入观测和输出动作到该目录。"""
+
 
 def main():
     import tyro
@@ -301,8 +416,13 @@ def main():
         port=cfg.port,
         default_prompt=cfg.default_prompt,
         pytorch_device=cfg.pytorch_device,
+        debug_dir=cfg.debug_dir,
     )
-    server.run()
+    try:
+        server.run()
+    finally:
+        if server.debug_recorder:
+            server.debug_recorder.close()
 
 
 if __name__ == "__main__":

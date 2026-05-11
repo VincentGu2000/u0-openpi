@@ -27,7 +27,7 @@ python scripts/compute_norm_stats.py \
 ```bash
 tmux new -s my_training "source ~/miniconda3/bin/activate pi05 && \
 HF_HUB_OFFLINE=1 WANDB_MODE=offline XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 python scripts/train.py pi05_u0bot \
-    --exp-name=u0bot_finetune_v1 \
+    --exp-name=u0bot_finetune_bs32 \
     --overwrite"
 ```
 
@@ -58,7 +58,7 @@ python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
     --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999 \
     --test_repo_id /data/gujunwen/project/fish-vla/dataset/usim/test \
-    --save_csv_path results/eval_u0bot_test_sample.csv
+    --save_csv_path results/eval_u0bot_test_pi05_2ep_abs.csv
 
 # For base model, use the path below:
     --checkpoint_dir /data/gujunwen/model/pi05_base
@@ -71,7 +71,7 @@ python scripts/eval_action_mse.py \
 ```bash
 python scripts/serve_policy.py \
     --config pi05_u0bot \
-    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999
+    --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999
 ```
 
 ### 5.2 HTTP 推理服务（仿真闭环测评）
@@ -86,7 +86,8 @@ python scripts/inference_service_openpi.py \
     --config pi05_u0bot \
     --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999 \
     --host 0.0.0.0 \
-    --port 8000
+    --port 8000 \
+    --debug-dir logs/gr00t
 ```
 
 多模型部署：
@@ -94,7 +95,7 @@ python scripts/inference_service_openpi.py \
 python scripts/launch_multi_gpu.py \
     --num-instances 5 \
     --base-port 8000 \
-    --gpus 1 \
+    --gpus 1,2,3 \
     --config pi05_u0bot \
     --checkpoint-dir checkpoints/pi05_u0bot/u0bot_finetune_bs32/21999
 ```
