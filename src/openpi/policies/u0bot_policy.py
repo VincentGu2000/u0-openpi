@@ -78,7 +78,7 @@ class U0BotInputs(transforms.DataTransformFn):
 
 @dataclasses.dataclass(frozen=True)
 class U0BotOutputs(transforms.DataTransformFn):
-    """Converts model outputs back to the u0bot (AgileBot) format.
+    """Converts model outputs back to the u0bot format.
 
     Used for inference only. Trims the padded actions back to 13 dimensions.
     """
