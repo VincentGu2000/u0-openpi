@@ -277,7 +277,9 @@ def main():
     parser.add_argument(
         "--test_repo_id",
         type=str,
-        default="/data/gujunwen/project/fish-vla/dataset/usim/test",
+        default=os.path.join(
+            os.path.expanduser(os.environ.get("DATA_BASE_DIR", "~/data")), "usim", "test"
+        ),
         help="LeRobot dataset repo ID or local path for testing",
     )
     parser.add_argument(

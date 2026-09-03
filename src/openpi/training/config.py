@@ -5,6 +5,7 @@ from collections.abc import Sequence
 import dataclasses
 import difflib
 import logging
+import os
 import pathlib
 from typing import Any, Literal, Protocol, TypeAlias
 
@@ -466,7 +467,7 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
 
 @dataclasses.dataclass(frozen=True)
 class LeRobotU0BotDataConfig(DataConfigFactory):
-    """Data config for the u0bot (AgileBot) usim dataset in LeRobot format.
+    """Data config for the u0bot usim dataset in LeRobot format.
 
     This config handles:
     - Repacking LeRobot dataset keys to match the policy's expected format
@@ -991,7 +992,7 @@ _CONFIGS = [
         num_train_steps=20_000,
     ),
     #
-    # Fine-tuning u0bot (AgileBot) config.
+    # Fine-tuning u0bot config.
     #
     TrainConfig(
         name="pi05_u0bot",
@@ -1002,19 +1003,21 @@ _CONFIGS = [
             action_horizon=16,
             discrete_state_input=False,
         ),
-        # Data config for the usim LeRobot dataset.
-        # Replace "your_hf_username/usim" with your actual HuggingFace repo ID or local path.
-        # For local datasets, you may need to create a symlink:
-        #   ln -s /path/to/usim ~/.cache/huggingface/lerobot/your_hf_username/usim
+        # Data config for the usim LeRobot dataset (LeRobot format).
+        # Default: $DATA_BASE_DIR/usim/train (set DATA_BASE_DIR, see .env.example);
+        # download with `hf download Vincent2025hello/usim --local-dir $DATA_BASE_DIR/usim`.
+        # You may also put your own local path or HuggingFace repo id here.
         data=LeRobotU0BotDataConfig(
-            repo_id="/data/gujunwen/project/fish-vla/dataset/usim/train",
+            repo_id=os.path.join(
+                os.path.expanduser(os.environ.get("DATA_BASE_DIR", "~/data")), "usim", "train"
+            ),
             base_config=DataConfig(
                 prompt_from_task=True,
             ),
         ),
-        # Load pi0.5 base pre-trained weights.
+        # Load the official pi0.5 base pre-trained weights.
         weight_loader=weight_loaders.CheckpointWeightLoader(
-            "/data/gujunwen/model/pi05_base/params"
+            "gs://openpi-assets/checkpoints/pi05_base/params"
         ),
         # Freeze the PaliGemma LLM (Gemma2B) while training the rest:
         # - SigLIP vision encoder: trainable

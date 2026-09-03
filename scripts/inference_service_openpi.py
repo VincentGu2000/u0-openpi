@@ -2,32 +2,35 @@
 # -*- coding: utf-8 -*-
 """
 OpenPI Inference Service (HTTP)
-为 fish-vla 仿真闭环测评提供与 GR00T HTTP Server 兼容的推理接口。
+Provides a GR00T HTTP Server-compatible inference endpoint for closed-loop
+evaluation in the u0env simulator (https://github.com/VincentGu2000/u0env).
 
-暴露与 GR00T 完全相同的 API：
+Exposes exactly the same API as the GR00T HTTP Server:
     POST /act
     Request:  {"observation": {gr00t_obs_dict}}
     Response: {"action.pwm": (H, 8), "action.joint_pos": (H, 5)}
 
-这样 ros_gr00t_bridge.py 无需任何修改，只需指向本服务即可。
+This way ros_gr00t_bridge.py (from the u0env ROS workspace) needs no
+modification -- simply point it to this server.
 
-注意：不使用 json_numpy.patch()，因为它会全局替换 json.loads()，
-导致 orbax（JAX checkpoint 加载）和 scipy 等库内部使用 json.loads 时崩溃。
-改为在 HTTP 请求/响应处理中显式使用 json_numpy.dumps()/loads()。
+Note: json_numpy.patch() is NOT used, because it globally replaces json.loads()
+and breaks orbax (JAX checkpoint loading) and scipy, which call json.loads()
+internally. json_numpy.dumps()/loads() are used explicitly in the HTTP
+request/response handling instead.
 
 Dependencies:
     => Server: pip install uvicorn fastapi json_numpy
     => Client: pip install requests json_numpy
 
 Usage:
-    # 启动服务
+    # Start the server
     python scripts/inference_service_openpi.py \
         --config pi05_u0bot \
-        --checkpoint_dir checkpoints/pi05_u0bot/u0bot_finetune_v1/10999 \
+        --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot \
         --host 0.0.0.0 \
         --port 8000
 
-    # Bridge 对接（无需修改 ros_gr00t_bridge.py）
+    # Connect the bridge (no modification needed in ros_gr00t_bridge.py)
     rosrun bluerov2_control ros_gr00t_bridge.py _host:=0.0.0.0 _port:=8000 _mode:=pwm
 """
 
@@ -384,7 +387,9 @@ class ServerConfig:
     """OpenPI 训练配置名称。"""
 
     # 模型 checkpoint 目录
-    checkpoint_dir: str = "checkpoints/pi05_u0bot/u0bot_finetune_v1/10999"
+    checkpoint_dir: str = os.path.join(
+        os.path.expanduser(os.environ.get("MODEL_BASE_DIR", "~/models")), "pi05-u0bot"
+    )
     """Path to the model checkpoint directory."""
 
     # 服务器配置
