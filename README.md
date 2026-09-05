@@ -53,9 +53,6 @@ GIT_LFS_SKIP_SMUDGE=1 uv sync --all-groups
 GIT_LFS_SKIP_SMUDGE=1 uv pip install -e .
 conda install -c conda-forge ffmpeg -y
 pip install --force-reinstall nvidia-cudnn-cu12==9.12.0.46
-
-# HTTP inference service dependencies (scripts/inference_service_openpi.py)
-pip install uvicorn fastapi json-numpy requests
 ```
 
 ## 2. Quick Setup: Configure Local Paths
