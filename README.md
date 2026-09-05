@@ -25,7 +25,7 @@ Companion resources:
 | OpenVLA baseline | [u0-openvla](https://github.com/VincentGu2000/u0-openvla) |
 | Simulation environment | [u0env](https://github.com/VincentGu2000/u0env) |
 | USIM dataset (LeRobot format) | [`Vincent2025hello/usim`](https://huggingface.co/datasets/Vincent2025hello/usim) |
-| Fine-tuned π0.5 weights | [`Vincent2025hello/pi05-u0bot`](https://huggingface.co/Vincent2025hello/pi05-u0bot) |
+| Fine-tuned π0.5 weights | [`Vincent2025hello/u0_pi05`](https://huggingface.co/Vincent2025hello/u0_pi05) |
 
 ## Features
 
@@ -72,10 +72,10 @@ source .env             # before running any command below
 Download our fine-tuned π0.5 checkpoint directly from Hugging Face:
 
 ```bash
-hf download Vincent2025hello/pi05-u0bot --local-dir $MODEL_BASE_DIR/pi05-u0bot
+hf download Vincent2025hello/u0_pi05 --local-dir $MODEL_BASE_DIR/u0_pi05
 ```
 
-Point `--checkpoint_dir` at `$MODEL_BASE_DIR/pi05-u0bot` in the evaluation and inference
+Point `--checkpoint_dir` at `$MODEL_BASE_DIR/u0_pi05` in the evaluation and inference
 steps below.
 
 ### Option B: Use the Official π0.5 Base Weights (For Self Fine-Tuning)
@@ -122,7 +122,7 @@ Open-loop evaluation computes the per-trajectory action MSE on the USIM test spl
 source .env
 python scripts/eval_action_mse.py \
     --config_name pi05_u0bot \
-    --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot \
+    --checkpoint_dir $MODEL_BASE_DIR/u0_pi05 \
     --test_repo_id $DATA_BASE_DIR/usim/test \
     --save_csv_path results/eval_u0bot_test_pi05_2ep_abs.csv
 ```
@@ -151,7 +151,7 @@ An additional delta-action variant run is released as-is: `results/eval_u0bot_te
 ```bash
 python scripts/serve_policy.py \
     --config pi05_u0bot \
-    --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot
+    --checkpoint_dir $MODEL_BASE_DIR/u0_pi05
 ```
 
 ### 7.2 HTTP Inference Service (GR00T-Compatible)
@@ -162,7 +162,7 @@ Starts a GR00T-compatible HTTP server for closed-loop evaluation in u0env:
 source .env
 python scripts/inference_service_openpi.py \
     --config pi05_u0bot \
-    --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot \
+    --checkpoint_dir $MODEL_BASE_DIR/u0_pi05 \
     --host 0.0.0.0 \
     --port 8000
 ```
@@ -184,7 +184,7 @@ python scripts/launch_multi_gpu.py \
     --base-port 8000 \
     --gpus 0,1 \
     --config pi05_u0bot \
-    --checkpoint-dir $MODEL_BASE_DIR/pi05-u0bot
+    --checkpoint-dir $MODEL_BASE_DIR/u0_pi05
 ```
 
 Press `Ctrl+C` to stop all instances. Logs are written to `./logs/`.

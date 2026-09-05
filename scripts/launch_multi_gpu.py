@@ -10,7 +10,7 @@ Usage:
         --base-port 8000 \
         --gpus 0,1,2,3 \
         --config pi05_u0bot \
-        --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot
+        --checkpoint_dir $MODEL_BASE_DIR/u0_pi05
 """
 
 import argparse

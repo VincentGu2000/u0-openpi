@@ -26,7 +26,7 @@ Usage:
     # Start the server
     python scripts/inference_service_openpi.py \
         --config pi05_u0bot \
-        --checkpoint_dir $MODEL_BASE_DIR/pi05-u0bot \
+        --checkpoint_dir $MODEL_BASE_DIR/u0_pi05 \
         --host 0.0.0.0 \
         --port 8000
 
@@ -388,7 +388,7 @@ class ServerConfig:
 
     # 模型 checkpoint 目录
     checkpoint_dir: str = os.path.join(
-        os.path.expanduser(os.environ.get("MODEL_BASE_DIR", "~/models")), "pi05-u0bot"
+        os.path.expanduser(os.environ.get("MODEL_BASE_DIR", "~/models")), "u0_pi05"
     )
     """Path to the model checkpoint directory."""
 
