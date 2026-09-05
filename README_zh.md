@@ -75,6 +75,9 @@ python scripts/eval_action_mse.py \
 
 ## 6. 启动策略服务
 
+> 注意：启动服务会从数据集目录（`$DATA_BASE_DIR/usim/train/`）读取 `norm_stats.json`。
+> 若未进行训练，请先执行第 3 节的归一化统计计算步骤。
+
 ### 6.1 WebSocket 策略服务（原生）
 
 ```bash

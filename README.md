@@ -146,6 +146,10 @@ An additional delta-action variant run is released as-is: `results/eval_u0bot_te
 
 ## 7. Inference
 
+> __Note__: Serving a policy loads `norm_stats.json` from the dataset directory
+> (`$DATA_BASE_DIR/usim/train/`). If you skipped fine-tuning, run the
+> compute-norm-stats step from Section 5 once before starting a server.
+
 ### 7.1 WebSocket Policy Server (Native)
 
 ```bash
